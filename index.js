@@ -14,7 +14,7 @@ client.on('message', message => {
 	console.log(message.channel.name);
 	message.delete();
 */
- // if (!message.content.startsWith(config.prefix) || message.author.bot) return;
+if (message.author.bot) return;
 
 // const args = message.content.slice(config.prefix.lenght).split(' ');
 // const command = args.shift().toLowerCase();
@@ -25,6 +25,7 @@ else if (channel === message.channel.name) {
 message.delete().catch(err=> {
 	console.error(err);
 
-});
+})
+;
 }
 });
