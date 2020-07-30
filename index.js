@@ -14,18 +14,47 @@ client.on('message', message => {
 	console.log(message.channel.name);
 	message.delete();
 */
-if (message.author.bot) return;
+const args = message.content.split(/ +/);
 
-// const args = message.content.slice(config.prefix.lenght).split(' ');
-// const command = args.shift().toLowerCase();
-	if (message.content === '$understood' || message.content === '!understood') {
+// if (!message.content.startsWith(config.prefix) || message.author.bot) return;
+
+if (message.content === '$understood' || message.content === '!understood') {
 		return;
 	}
 else if (channel === message.channel.name) {
 message.delete().catch(err=> {
 	console.error(err);
 
-})
-;
+});
 }
+else if (args[0] === '!mute') {
+const guild = client.guilds.cache.get('334839197607264257');
+
+const member = guild.members.cache.get(args[1]);
+member.roles.remove('710237948150284389').catch(err => {
+	console.error(err);
+});
+}
+// console.log(message.mentions.users.first());
+/* taggedUser.id.roles.remove(710237948150284389).catch(err=> {
+	console.error(err);
+});
+*/
+
+/*
+if (command === '!mute') {
+
+const taggedUser = message.mentions.users.first();
+console.log(message.mentions.users.first());
+ // get mentioned user
+ console.log(message.mentions.users.first);
+	if (taggedUser.roles.find('name', 'memelord')) {
+			// check if muted user has role
+	taggedUser.removeRole(710237948150284389).catch(err=> {
+		console.error(err);
+	});
+	}
+}
+*/
+
 });
