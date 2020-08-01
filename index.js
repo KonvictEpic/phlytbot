@@ -18,7 +18,7 @@ const args = message.content.split(/ +/);
 
 // if (!message.content.startsWith(config.prefix) || message.author.bot) return;
 
-if (message.content === '$understood' || message.content === '!understood') {
+if (message.content === '$understood' || message.content === '!understood' || message.author.bot) {
 		return;
 	}
 else if (channel === message.channel.name) {
