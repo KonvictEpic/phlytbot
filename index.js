@@ -32,7 +32,7 @@ if (message.content === '$understood' || message.content === '!understood' || me
 		}
 	}
 	else if (message.member.roles.cache.has('334841054656462849') || message.member.roles.cache.has('435696785772773376')) {
-		if (args[0] === '!mute') {
+		if (args[0] === '!mute' || args[0] === '!tempmute') {
 
 		const member = guild.members.cache.get(args[1]);
 		member.roles.remove('710237948150284389').catch(err => {
