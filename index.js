@@ -15,8 +15,22 @@ client.on('message', message => {
 	console.log(message.channel.name);
 	message.delete();
 */
-	const args = message.content.split(/ +/);
 
+	const args = message.content.split(/ +/);
+	/*
+	const member = new Promise((resolve, reject) => {
+		if (typeof this !== 'undefined') {
+						resolve('success')
+		if
+		}
+	})
+
+	/*
+	function success(memberid) {
+	memberid.roles.remove('710237948150284389').catch(err => {
+		console.error(err);
+		});
+}
 // if (!message.content.startsWith(config.prefix) || message.author.bot) return;
 /*
 if (message.content === '$understood' || message.content === '!understood' || message.author.bot) {
@@ -31,34 +45,15 @@ if (message.content === '$understood' || message.content === '!understood' || me
 			});
 		}
 	}
-	else if (message.member.roles.cache.has('334841054656462849') || message.member.roles.cache.has('435696785772773376')) {
+	else if (message.channel.name === 'aperture' || message.channel.name === 'kons-coding-room') {
 		if (args[0] === '!mute' || args[0] === '!tempmute') {
+			guild.members.fetch(args[1])
 
-		const member = guild.members.cache.get(args[1]);
-		member.roles.remove('710237948150284389').catch(err => {
-			console.error(err);
-			});
+			.then(user => {
+			user.roles.remove('710237948150284389');
+			})
+			.catch(console.error);
+
 		}
 	}
-	});
-// console.log(message.mentions.users.first());
-/* taggedUser.id.roles.remove(710237948150284389).catch(err=> {
-	console.error(err);
 });
-*/
-
-/*
-if (command === '!mute') {
-
-const taggedUser = message.mentions.users.first();
-console.log(message.mentions.users.first());
- // get mentioned user
- console.log(message.mentions.users.first);
-	if (taggedUser.roles.find('name', 'memelord')) {
-			// check if muted user has role
-	taggedUser.removeRole(710237948150284389).catch(err=> {
-		console.error(err);
-	});
-	}
-}
-*/
