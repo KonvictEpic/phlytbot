@@ -100,10 +100,18 @@ module.exports = {
          * @private
          */
         function isImmediateFunctionPrototypeMethodCall(node) {
-            return node.type === "CallExpression" &&
-                node.callee.type === "MemberExpression" &&
-                node.callee.object.type === "FunctionExpression" &&
-                ["call", "apply"].includes(astUtils.getStaticPropertyName(node.callee));
+            const callNode = astUtils.skipChainExpression(node);
+
+            if (callNode.type !== "CallExpression") {
+                return false;
+            }
+            const callee = astUtils.skipChainExpression(callNode.callee);
+
+            return (
+                callee.type === "MemberExpression" &&
+                callee.object.type === "FunctionExpression" &&
+                ["call", "apply"].includes(astUtils.getStaticPropertyName(callee))
+            );
         }
 
         /**
@@ -360,7 +368,9 @@ module.exports = {
          * @returns {boolean} `true` if the given node is an IIFE
          */
         function isIIFE(node) {
-            return node.type === "CallExpression" && node.callee.type === "FunctionExpression";
+            const maybeCallNode = astUtils.skipChainExpression(node);
+
+            return maybeCallNode.type === "CallExpression" && maybeCallNode.callee.type === "FunctionExpression";
         }
 
         /**
@@ -462,16 +472,33 @@ module.exports = {
             const callee = node.callee;
 
             if (hasExcessParensWithPrecedence(callee, precedence(node))) {
-                const hasNewParensException = callee.type === "NewExpression" && !isNewExpressionWithParens(callee);
-
                 if (
                     hasDoubleExcessParens(callee) ||
-                    !isIIFE(node) && !hasNewParensException && !(
+                    !(
+                        isIIFE(node) ||
 
-                        // Allow extra parens around a new expression if they are intervening parentheses.
-                        node.type === "NewExpression" &&
-                        callee.type === "MemberExpression" &&
-                        doesMemberExpressionContainCallExpression(callee)
+                        // (new A)(); new (new A)();
+                        (
+                            callee.type === "NewExpression" &&
+                            !isNewExpressionWithParens(callee) &&
+                            !(
+                                node.type === "NewExpression" &&
+                                !isNewExpressionWithParens(node)
+                            )
+                        ) ||
+
+                        // new (a().b)(); new (a.b().c);
+                        (
+                            node.type === "NewExpression" &&
+                            callee.type === "MemberExpression" &&
+                            doesMemberExpressionContainCallExpression(callee)
+                        ) ||
+
+                        // (a?.b)(); (a?.())();
+                        (
+                            !node.optional &&
+                            callee.type === "ChainExpression"
+                        )
                     )
                 ) {
                     report(node.callee);
@@ -498,7 +525,7 @@ module.exports = {
 
             if (!shouldSkipLeft && hasExcessParens(node.left)) {
                 if (
-                    !(node.left.type === "UnaryExpression" && isExponentiation) &&
+                    !(["AwaitExpression", "UnaryExpression"].includes(node.left.type) && isExponentiation) &&
                     !astUtils.isMixedLogicalAndCoalesceExpressions(node.left, node) &&
                     (leftPrecedence > prec || (leftPrecedence === prec && !isExponentiation)) ||
                     isParenthesisedTwice(node.left)
@@ -710,6 +737,20 @@ module.exports = {
             reportsBuffer.reports = reportsBuffer.reports.filter(r => r.node !== node);
         }
 
+        /**
+         * Checks whether a node is a MemberExpression at NewExpression's callee.
+         * @param {ASTNode} node node to check.
+         * @returns {boolean} True if the node is a MemberExpression at NewExpression's callee. false otherwise.
+         */
+        function isMemberExpInNewCallee(node) {
+            if (node.type === "MemberExpression") {
+                return node.parent.type === "NewExpression" && node.parent.callee === node
+                    ? true
+                    : node.parent.object === node && isMemberExpInNewCallee(node.parent);
+            }
+            return false;
+        }
+
         return {
             ArrayExpression(node) {
                 node.elements
@@ -803,44 +844,48 @@ module.exports = {
             ExportDefaultDeclaration: node => checkExpressionOrExportStatement(node.declaration),
             ExpressionStatement: node => checkExpressionOrExportStatement(node.expression),
 
-            "ForInStatement, ForOfStatement"(node) {
-                if (node.left.type !== "VariableDeclarator") {
+            ForInStatement(node) {
+                if (node.left.type !== "VariableDeclaration") {
                     const firstLeftToken = sourceCode.getFirstToken(node.left, astUtils.isNotOpeningParenToken);
 
                     if (
-                        firstLeftToken.value === "let" && (
-
-                            /*
-                             * If `let` is the only thing on the left side of the loop, it's the loop variable: `for ((let) of foo);`
-                             * Removing it will cause a syntax error, because it will be parsed as the start of a VariableDeclarator.
-                             */
-                            (firstLeftToken.range[1] === node.left.range[1] || /*
-                             * If `let` is followed by a `[` token, it's a property access on the `let` value: `for ((let[foo]) of bar);`
-                             * Removing it will cause the property access to be parsed as a destructuring declaration of `foo` instead.
-                             */
-                            astUtils.isOpeningBracketToken(
-                                sourceCode.getTokenAfter(firstLeftToken, astUtils.isNotClosingParenToken)
-                            ))
+                        firstLeftToken.value === "let" &&
+                        astUtils.isOpeningBracketToken(
+                            sourceCode.getTokenAfter(firstLeftToken, astUtils.isNotClosingParenToken)
                         )
                     ) {
+
+                        // ForInStatement#left expression cannot start with `let[`.
                         tokensToIgnore.add(firstLeftToken);
                     }
                 }
 
-                if (node.type === "ForOfStatement") {
-                    const hasExtraParens = node.right.type === "SequenceExpression"
-                        ? hasDoubleExcessParens(node.right)
-                        : hasExcessParens(node.right);
+                if (hasExcessParens(node.left)) {
+                    report(node.left);
+                }
 
-                    if (hasExtraParens) {
-                        report(node.right);
-                    }
-                } else if (hasExcessParens(node.right)) {
+                if (hasExcessParens(node.right)) {
                     report(node.right);
+                }
+            },
+
+            ForOfStatement(node) {
+                if (node.left.type !== "VariableDeclaration") {
+                    const firstLeftToken = sourceCode.getFirstToken(node.left, astUtils.isNotOpeningParenToken);
+
+                    if (firstLeftToken.value === "let") {
+
+                        // ForOfStatement#left expression cannot start with `let`.
+                        tokensToIgnore.add(firstLeftToken);
+                    }
                 }
 
                 if (hasExcessParens(node.left)) {
                     report(node.left);
+                }
+
+                if (hasExcessParensWithPrecedence(node.right, PRECEDENCE_OF_ASSIGNMENT_EXPR)) {
+                    report(node.right);
                 }
             },
 
@@ -854,6 +899,22 @@ module.exports = {
                 }
 
                 if (node.init) {
+
+                    if (node.init.type !== "VariableDeclaration") {
+                        const firstToken = sourceCode.getFirstToken(node.init, astUtils.isNotOpeningParenToken);
+
+                        if (
+                            firstToken.value === "let" &&
+                            astUtils.isOpeningBracketToken(
+                                sourceCode.getTokenAfter(firstToken, astUtils.isNotClosingParenToken)
+                            )
+                        ) {
+
+                            // ForStatement#init expression cannot start with `let[`.
+                            tokensToIgnore.add(firstToken);
+                        }
+                    }
+
                     startNewReportsBuffering();
 
                     if (hasExcessParens(node.init)) {
@@ -950,7 +1011,11 @@ module.exports = {
             LogicalExpression: checkBinaryLogical,
 
             MemberExpression(node) {
-                const nodeObjHasExcessParens = hasExcessParens(node.object) &&
+                const shouldAllowWrapOnce = isMemberExpInNewCallee(node) &&
+                  doesMemberExpressionContainCallExpression(node);
+                const nodeObjHasExcessParens = shouldAllowWrapOnce
+                    ? hasDoubleExcessParens(node.object)
+                    : hasExcessParens(node.object) &&
                     !(
                         isImmediateFunctionPrototypeMethodCall(node.parent) &&
                         node.parent.callee === node &&
@@ -974,8 +1039,8 @@ module.exports = {
                 }
 
                 if (nodeObjHasExcessParens &&
-                  node.object.type === "CallExpression" &&
-                  node.parent.type !== "NewExpression") {
+                  node.object.type === "CallExpression"
+                ) {
                     report(node.object);
                 }
 
@@ -983,6 +1048,13 @@ module.exports = {
                   !IGNORE_NEW_IN_MEMBER_EXPR &&
                   node.object.type === "NewExpression" &&
                   isNewExpressionWithParens(node.object)) {
+                    report(node.object);
+                }
+
+                if (nodeObjHasExcessParens &&
+                    node.optional &&
+                    node.object.type === "ChainExpression"
+                ) {
                     report(node.object);
                 }
 
@@ -1071,7 +1143,22 @@ module.exports = {
             },
 
             UnaryExpression: checkArgumentWithPrecedence,
-            UpdateExpression: checkArgumentWithPrecedence,
+            UpdateExpression(node) {
+                if (node.prefix) {
+                    checkArgumentWithPrecedence(node);
+                } else {
+                    const { argument } = node;
+                    const operatorToken = sourceCode.getLastToken(node);
+
+                    if (argument.loc.end.line === operatorToken.loc.start.line) {
+                        checkArgumentWithPrecedence(node);
+                    } else {
+                        if (hasDoubleExcessParens(argument)) {
+                            report(argument);
+                        }
+                    }
+                }
+            },
             AwaitExpression: checkArgumentWithPrecedence,
 
             VariableDeclarator(node) {
