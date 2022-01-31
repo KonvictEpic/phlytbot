@@ -40,11 +40,11 @@ client.once('ready', () => {
 	console.log('Ready!');
 	const guilds = client.guilds.cache.map(guild => guild);
 	console.log(guilds);
-
+	return guilds[0];
 
 });}
-ready();
-
+guilds = ready();
+console.log(guilds);
 client.login(config.token);
 const channel = 'welcome-room';
 //const guild = client.guilds.cache.get('334839197607264257');
@@ -129,7 +129,10 @@ if (message.content === '$understood' || message.content === '!understood' || me
 		}
 	}
 	else if (message.channel.name === 'aperture' || message.channel.name === 'kons-coding-room') {
-		if (args[0] === '!mute' || args[0] === '!tempmute') {
+    if (args [0] == '!hello') {
+      message.channel.send('im alive!');
+    }
+	else if (args[0] === '!mute' || args[0] === '!tempmute') {
 
 			var today = new Date();
 			//var date = today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate();
