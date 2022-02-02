@@ -43,10 +43,11 @@ client.once('ready', () => {
 	return guilds[0];
 
 });}
-guilds = ready();
-console.log(guilds);
+ready();
+
 client.login(config.token);
 const channel = 'welcome-room';
+
 //const guild = client.guilds.cache.get('334839197607264257');
 //console.log(guild);
 
@@ -71,7 +72,8 @@ fs.readFile('troublemakers.json', (err, data) => {
 }
 });
 */
-async function waiting() {
+async function waiting() {       // is supposed to go through troublemaker.json daily to check if someone should have their role removed,
+								// however I cant fetch guild outside of a client function or make it wait for guilds to be avaiable before trying to fetch them.
 
 cron.schedule(' * * 23 * * * ', function() {
 	console.log("running");
@@ -100,53 +102,39 @@ client.on('message', message => {
 */
 
 	const args = message.content.split(/ +/);
-	/*
-	const member = new Promise((resolve, reject) => {
-		if (typeof this !== 'undefined') {
-						resolve('success')
-		if
-		}
-	})
-
-	/*
-	function success(memberid) {
-	memberid.roles.remove('710237948150284389').catch(err => {
-		console.error(err);
-		});
-}
-// if (!message.content.startsWith(config.prefix) || message.author.bot) return;
-/*
-if (message.content === '$understood' || message.content === '!understood' || message.author.bot) {
-		return;
-	}
-	*/
+	
 	if (channel === message.channel.name) {
 
-		if (!message.content === '$understood' || !message.content === '!understood' || !message.author.bot) {
+		if (!message.content === '$understood' || !message.content === '!understood' || !message.author.bot) { // cleans up welcome room.
 			message.delete().catch(err=> {
 			console.error(err);
 			});
 		}
 	}
 	else if (message.channel.name === 'aperture' || message.channel.name === 'kons-coding-room') {
-    if (args [0] == '!hello') {
-      message.channel.send('im alive!');
-    }
-	else if (args[0] === '!mute' || args[0] === '!tempmute') {
+		if (args[0] === '!mute' || args[0] === '!tempmute') { // removes memelord from muted users
 
-			var today = new Date();
-			//var date = today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate();
+		
 
 			message.guild.members.fetch(args[1])
 			.then(user => {
-				user.roles.remove('memelord');
-
-				let value = today + '\t' + user.id+ '\n';
-				//let value = idtemp.toString();
-				fs.appendFile('troublemakers.json', value, err=>{console.error(err);})
+				user.roles.remove(config.memlord);
 			})
 			.catch(console.error);
 
+		}
+		else if (args[0] == '$rulebreak'){ //checks for rulebreakers and appends their name and date to the troublemakers file.
+			
+			var thisday = today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate(); // cleaner date, easier to read
+
+			message.guild.members.fetch(args[1]) //finds user based on provided UID
+			.then(user => {
+	
+				let value = thisday + '\t' + user.id+ '\n';
+				//let value = idtemp.toString();
+				fs.appendFile('troublemakers.json', value, err=>{console.error(err);}) //appends to user to file
+			})
+			.catch(console.error);
 		}
 	}
 });
