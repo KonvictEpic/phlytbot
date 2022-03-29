@@ -100,8 +100,13 @@ client.on('message', message => {
 	console.log(message.channel.name);
 	message.delete();
 */
+const args = message.content.split(/ +/);
+//message.guild.members.fetch(args[1])
+//.then( user => {console.log(user)})
 
-	const args = message.content.split(/ +/);
+//console.log(args[1]);
+
+	
 	
 	if (channel === message.channel.name) {
 
@@ -112,13 +117,15 @@ client.on('message', message => {
 		}
 	}
 	else if (message.channel.name === 'aperture' || message.channel.name === 'kons-coding-room') {
-		if (args[0] === '!mute' || args[0] === '!tempmute') { // removes memelord from muted users
+		if (args[0] =='!mute' || args[0] == '!tempmute') { // removes memelord from muted users
 
 		
 
 			message.guild.members.fetch(args[1])
 			.then(user => {
-				user.roles.remove(config.memlord);
+				user.roles.remove(config.memlord)
+				.then(console.log)
+				.catch(err=> { console.error(err)});
 			})
 			.catch(console.error);
 
