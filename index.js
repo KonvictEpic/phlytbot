@@ -100,11 +100,10 @@ client.on('message', message => {
 	console.log(message.channel.name);
 	message.delete();
 */
-const args = message.content.split(/ +/);
+	const args = message.content.split(/ +/);
 //message.guild.members.fetch(args[1])
 //.then( user => {console.log(user)})
 
-//console.log(args[1]);
 
 	
 	
@@ -143,5 +142,18 @@ const args = message.content.split(/ +/);
 			})
 			.catch(console.error);
 		}
+	}
+	else if (message.guild.id === '730156420107862057'){
+		if (args[0] === '!restrict') {
+			message.guild.members.fetch(args[1]).then(user => {
+				user.roles.add('781222980990402600')
+					.then(console.log).catch(console.error)
+			}).catch(console.error);
+			let key = "";
+			console.log(args)
+			for (let i = 2; i < args.length; i++){
+				 key += args[i] + " ";
+			}
+			message.channel.send('!warn ' + args[1] + ' muted for ' + key );}
 	}
 });
